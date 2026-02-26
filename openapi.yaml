@@ -1,0 +1,210 @@
+openapi: 3.0.3
+info:
+  title: Tracker Backend Auth API
+  version: 1.0.0
+  description: Minimal OpenAPI spec for auth endpoints only.
+servers:
+  - url: http://localhost:8080
+    description: Local development
+paths:
+  /api/auth/telegram:
+    post:
+      summary: Authenticate via Telegram WebApp initData
+      description: Validate Telegram initData, upsert user, issue access/refresh tokens.
+      parameters:
+        - in: header
+          name: X-Timezone
+          required: false
+          schema:
+            type: string
+          description: Optional IANA timezone (example `Europe/Moscow`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelegramAuthRequest'
+            example:
+              initData: "query_id=AA...&user={...}&auth_date=...&hash=..."
+      responses:
+        '200':
+          description: Auth success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+              example:
+                user:
+                  id: 1
+                  tgId: 123456789
+                  username: "john"
+                  firstName: "John"
+                  lastName: "Doe"
+                  timezone: "Europe/Moscow"
+                  stepsGoal: 10000
+                  streak: 3
+                  createdAt: "2026-02-22T10:00:00Z"
+                  updatedAt: "2026-02-22T10:00:00Z"
+                token:
+                  accessToken: "eyJhbGci..."
+                  refreshToken: "eyJhbGci..."
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: "invalid_input"
+                error: "invalid input: initData is required"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: "unauthorized"
+                error: "unauthorized"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: "internal_error"
+                error: "internal server error"
+
+  /api/auth/refresh:
+    post:
+      summary: Refresh JWT token pair
+      description: Validate refresh token and rotate session, then issue a new token pair.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+            example:
+              refreshToken: "eyJhbGci..."
+      responses:
+        '200':
+          description: Refresh success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshResponse'
+              example:
+                token:
+                  accessToken: "eyJhbGci..."
+                  refreshToken: "eyJhbGci..."
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: "invalid_input"
+                error: "invalid input: refreshToken is required"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: "unauthorized"
+                error: "unauthorized"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: "internal_error"
+                error: "internal server error"
+
+components:
+  schemas:
+    TelegramAuthRequest:
+      type: object
+      required: [initData]
+      properties:
+        initData:
+          type: string
+          description: Telegram WebApp initData query string.
+
+    RefreshRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+          description: Refresh JWT token.
+
+    TokenPair:
+      type: object
+      required: [accessToken, refreshToken]
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+
+    User:
+      type: object
+      required: [id, tgId, username, firstName, timezone, stepsGoal, streak, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        tgId:
+          type: integer
+          format: int64
+        username:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        timezone:
+          type: string
+        stepsGoal:
+          type: integer
+        streak:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    AuthResponse:
+      type: object
+      required: [user, token]
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        token:
+          $ref: '#/components/schemas/TokenPair'
+
+    RefreshResponse:
+      type: object
+      required: [token]
+      properties:
+        token:
+          $ref: '#/components/schemas/TokenPair'
+
+    ErrorResponse:
+      type: object
+      required: [code, error]
+      properties:
+        code:
+          type: string
+          enum: [invalid_input, unauthorized, not_found, conflict, internal_error]
+        error:
+          type: string

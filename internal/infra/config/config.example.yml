@@ -1,0 +1,32 @@
+App:
+  env: "development"
+  logLevel: "info"
+  corsAllowedOrigins:
+    - "http://localhost:3000"
+    - "http://127.0.0.1:3000"
+    - "http://localhost:4173"
+    - "http://127.0.0.1:4173"
+
+Server:
+  appVersion: "0.1.0"
+  host: "0.0.0.0"
+  port: "8080"
+
+Database:
+  # Либо укажите целиком URL, либо задайте host/port/user/password/DBName.
+  # url: "postgres://tracker:tracker@localhost:5432/tracker?sslmode=disable"
+  host: "localhost"
+  port: "5432"
+  user: "tracker"
+  password: "tracker"
+  DBName: "tracker"
+  sslMode: "disable"
+  pgDriver: "postgres"
+
+Telegram:
+  botToken: "REPLACE_ME"
+  webhookSecret: "REPLACE_ME"
+
+Auth:
+  accessSecret: "REPLACE_ME"
+  refreshSecret: "REPLACE_ME"
