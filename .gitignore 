@@ -28,6 +28,7 @@ vendor/
 .DS_Store
 Thumbs.db
 
+.idea
 # Env/config
 .env
 internal/infra/config/.env

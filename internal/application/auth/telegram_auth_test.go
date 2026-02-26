@@ -166,6 +166,8 @@ func TestTelegramAuth_VerifyError(t *testing.T) {
 
 func TestTelegramAuth_Success_DefaultTimezoneAndSessionPersist(t *testing.T) {
 	lastName := "Doe"
+	ip := "10.20.30.40"
+	ua := "telegram-test-agent"
 	now := time.Date(2026, 2, 25, 12, 0, 0, 0, time.UTC)
 	createdUser := domainUser.User{
 		ID:         42,
@@ -214,7 +216,11 @@ func TestTelegramAuth_Success_DefaultTimezoneAndSessionPersist(t *testing.T) {
 		LastName:   &lastName,
 	}}, repo, tokens, hasher, sessions)
 
-	out, err := uc.Execute(context.Background(), TelegramAuthInput{InitData: "valid"})
+	out, err := uc.Execute(context.Background(), TelegramAuthInput{
+		InitData:  "valid",
+		IP:        &ip,
+		UserAgent: &ua,
+	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -254,6 +260,12 @@ func TestTelegramAuth_Success_DefaultTimezoneAndSessionPersist(t *testing.T) {
 	}
 	if sessions.created.Access.TokenHash != "access_hash" || sessions.created.Refresh.TokenHash != "refresh_hash" {
 		t.Fatalf("unexpected session token hashes: access=%q refresh=%q", sessions.created.Access.TokenHash, sessions.created.Refresh.TokenHash)
+	}
+	if sessions.created.Meta.IP == nil || *sessions.created.Meta.IP != ip {
+		t.Fatalf("expected session ip %q, got %#v", ip, sessions.created.Meta.IP)
+	}
+	if sessions.created.Meta.UserAgent == nil || *sessions.created.Meta.UserAgent != ua {
+		t.Fatalf("expected session userAgent %q, got %#v", ua, sessions.created.Meta.UserAgent)
 	}
 }
 

@@ -36,9 +36,10 @@ type AppConfig struct {
 }
 
 type ServerConfig struct {
-	AppVersion string `yaml:"appVersion" mapstructure:"appVersion"`
-	Host       string `yaml:"host" mapstructure:"host"`
-	Port       string `yaml:"port" mapstructure:"port"`
+	AppVersion     string   `yaml:"appVersion" mapstructure:"appVersion"`
+	Host           string   `yaml:"host" mapstructure:"host"`
+	Port           string   `yaml:"port" mapstructure:"port"`
+	TrustedProxies []string `yaml:"trustedProxies" mapstructure:"trustedProxies"`
 }
 
 type DatabaseConfig struct {
@@ -180,6 +181,9 @@ func (c *Config) normalize(resolvedEnv string) {
 	}
 	if strings.TrimSpace(c.Server.Port) == "" {
 		c.Server.Port = "8080"
+	}
+	if len(c.Server.TrustedProxies) == 0 {
+		c.Server.TrustedProxies = []string{"127.0.0.1", "::1"}
 	}
 	if strings.TrimSpace(c.App.LogLevel) == "" {
 		c.App.LogLevel = "info"

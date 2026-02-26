@@ -3,7 +3,6 @@ package authapi
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -53,15 +52,28 @@ func (h *Handler) TelegramAuth(c *gin.Context) {
 		writeError(c, errors.Join(shared.ErrInvalidInput, err))
 		return
 	}
-	fmt.Print(body.InitData)
+
 	var timezone *string
 	if value := strings.TrimSpace(c.GetHeader("X-Timezone")); value != "" {
 		timezone = &value
 	}
+	ipRaw := strings.TrimSpace(c.ClientIP())
+	uaRaw := strings.TrimSpace(c.GetHeader("User-Agent"))
+
+	var ip *string
+	if ipRaw != "" {
+		ip = &ipRaw
+	}
+	var ua *string
+	if uaRaw != "" {
+		ua = &uaRaw
+	}
 
 	out, err := h.useCases.TelegramAuth.Execute(c.Request.Context(), appauth.TelegramAuthInput{
-		InitData: body.InitData,
-		Timezone: timezone,
+		InitData:  body.InitData,
+		Timezone:  timezone,
+		IP:        ip,
+		UserAgent: ua,
 	})
 	if err != nil {
 		writeError(c, err)

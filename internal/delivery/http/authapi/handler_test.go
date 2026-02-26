@@ -51,6 +51,12 @@ func TestTelegramAuthHandlerSuccess(t *testing.T) {
 			if in.Timezone == nil || *in.Timezone != "Europe/Moscow" {
 				t.Fatalf("expected timezone from header, got %#v", in.Timezone)
 			}
+			if in.IP == nil || *in.IP == "" {
+				t.Fatalf("expected non-empty client ip")
+			}
+			if in.UserAgent == nil || *in.UserAgent != "tracker-telegram-test-agent" {
+				t.Fatalf("expected user agent header, got %#v", in.UserAgent)
+			}
 
 			return appauth.TelegramAuthOutput{
 				User: domainUser.User{
@@ -77,6 +83,8 @@ func TestTelegramAuthHandlerSuccess(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/auth/telegram", bytes.NewBufferString(`{"initData":"query_id=ok"}`))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Timezone", "Europe/Moscow")
+	req.Header.Set("User-Agent", "tracker-telegram-test-agent")
+	req.RemoteAddr = "10.20.30.40:12345"
 	rec := httptest.NewRecorder()
 
 	router.ServeHTTP(rec, req)

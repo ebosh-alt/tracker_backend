@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -12,8 +13,12 @@ import (
 func NewRouter(
 	authMiddleware gin.HandlerFunc,
 	authHandler *authapi.Handler,
-) *gin.Engine {
+	trustedProxies []string,
+) (*gin.Engine, error) {
 	router := gin.New()
+	if err := router.SetTrustedProxies(trustedProxies); err != nil {
+		return nil, fmt.Errorf("set trusted proxies: %w", err)
+	}
 	router.Use(gin.Logger(), gin.Recovery())
 
 	router.GET("/health", func(c *gin.Context) {
@@ -26,5 +31,5 @@ func NewRouter(
 	protectedAPI := router.Group("/api")
 	protectedAPI.Use(authMiddleware)
 
-	return router
+	return router, nil
 }

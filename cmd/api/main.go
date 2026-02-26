@@ -55,7 +55,10 @@ func main() {
 		Refresh:      refreshUC,
 	})
 
-	router := server.NewRouter(authMiddleware, authHandler)
+	router, err := server.NewRouter(authMiddleware, authHandler, cfg.Server.TrustedProxies)
+	if err != nil {
+		log.Fatalf("configure http router: %v", err)
+	}
 	log.Printf(
 		"api starting env=%s addr=%s",
 		strings.TrimSpace(cfg.App.Env),

@@ -21,8 +21,10 @@ type TokenPair struct {
 
 // TelegramAuthInput входные данные для Telegram auth.
 type TelegramAuthInput struct {
-	InitData string
-	Timezone *string
+	InitData  string
+	Timezone  *string
+	IP        *string
+	UserAgent *string
 }
 
 // TelegramAuthOutput результат Telegram auth.
@@ -157,6 +159,10 @@ func (uc *TelegramAuthUseCase) Execute(ctx context.Context, in TelegramAuthInput
 			ExpiresAt: issued.Refresh.ExpiresAt,
 		},
 		IssuedAt: issued.IssuedAt,
+		Meta: identity.Meta{
+			IP:        in.IP,
+			UserAgent: in.UserAgent,
+		},
 	})
 	if err != nil {
 		return TelegramAuthOutput{}, err
