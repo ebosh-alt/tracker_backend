@@ -7,12 +7,16 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"tracker/internal/delivery/http/authapi"
+	"tracker/internal/delivery/http/meapi"
+	"tracker/internal/delivery/http/stepsapi"
 )
 
 // NewRouter собирает HTTP-роутер приложения.
 func NewRouter(
 	authMiddleware gin.HandlerFunc,
 	authHandler *authapi.Handler,
+	stepsHandler *stepsapi.Handler,
+	meHandler *meapi.Handler,
 	trustedProxies []string,
 ) (*gin.Engine, error) {
 	router := gin.New()
@@ -30,6 +34,8 @@ func NewRouter(
 
 	protectedAPI := router.Group("/api")
 	protectedAPI.Use(authMiddleware)
+	stepsapi.RegisterRoutes(protectedAPI, stepsHandler)
+	meapi.RegisterRoutes(protectedAPI, meHandler)
 
 	return router, nil
 }

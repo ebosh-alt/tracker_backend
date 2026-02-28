@@ -7,9 +7,13 @@ import (
 	"time"
 
 	appauth "tracker/internal/application/auth"
+	appsteps "tracker/internal/application/steps"
+	appuser "tracker/internal/application/user"
 	"tracker/internal/delivery/http/authapi"
+	"tracker/internal/delivery/http/meapi"
 	"tracker/internal/delivery/http/middleware"
 	"tracker/internal/delivery/http/server"
+	"tracker/internal/delivery/http/stepsapi"
 	infraauth "tracker/internal/infra/auth"
 	"tracker/internal/infra/config"
 	"tracker/internal/infra/postgres"
@@ -55,7 +59,27 @@ func main() {
 		Refresh:      refreshUC,
 	})
 
-	router, err := server.NewRouter(authMiddleware, authHandler, cfg.Server.TrustedProxies)
+	stepsRepo := postgres.NewStepsRepository(db)
+	uow := postgres.NewUnitOfWork(db)
+	listStepsUC := appsteps.NewListUseCase(stepsRepo)
+	putStepsUC := appsteps.NewPutUseCase(stepsRepo, uow)
+	addStepsUC := appsteps.NewAddUseCase(stepsRepo, uow)
+	deleteStepsUC := appsteps.NewDeleteUseCase(stepsRepo, uow)
+	analyticsStepsUC := appsteps.NewAnalyticsUseCase(stepsRepo, userReader)
+	updateSettingsUC := appuser.NewUpdateSettingsUseCase(userReader, uow)
+
+	stepsHandler := stepsapi.NewHandler(stepsapi.StepsUseCases{
+		List:      listStepsUC,
+		Put:       putStepsUC,
+		Add:       addStepsUC,
+		Delete:    deleteStepsUC,
+		Analytics: analyticsStepsUC,
+	})
+	meHandler := meapi.NewHandler(meapi.MeUseCases{
+		UpdateSettings: updateSettingsUC,
+	})
+
+	router, err := server.NewRouter(authMiddleware, authHandler, stepsHandler, meHandler, cfg.Server.TrustedProxies)
 	if err != nil {
 		log.Fatalf("configure http router: %v", err)
 	}

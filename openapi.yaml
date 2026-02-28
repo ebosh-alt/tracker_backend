@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
-  title: Tracker Backend Auth API
+  title: Tracker Backend API
   version: 1.0.0
-  description: Minimal OpenAPI spec for auth endpoints only.
+  description: OpenAPI spec for auth and steps endpoints.
 servers:
   - url: http://localhost:8080
     description: Local development
@@ -127,7 +127,264 @@ paths:
                 code: "internal_error"
                 error: "internal server error"
 
+  /api/me/settings:
+    patch:
+      summary: Update current user settings
+      description: Partial update for user settings (`timezone`, `stepsGoal`).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MeSettingsPatchRequest'
+            example:
+              timezone: "Europe/Moscow"
+              stepsGoal: 12000
+      responses:
+        '200':
+          description: Updated user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeSettingsPatchResponse'
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/steps:
+    get:
+      summary: List daily steps entries
+      description: Returns steps entries in inclusive date range.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: from
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Range start date in YYYY-MM-DD.
+        - in: query
+          name: to
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Range end date in YYYY-MM-DD.
+      responses:
+        '200':
+          description: Steps list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StepsListResponse'
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/steps/{date}:
+    put:
+      summary: Upsert daily steps entry
+      description: Creates or updates steps entry for a specific date.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: date
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Entry date in YYYY-MM-DD.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StepsPutRequest'
+      responses:
+        '200':
+          description: Upsert result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StepsPutResponse'
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Delete daily steps entry
+      description: Deletes entry for a specific date. Operation is idempotent.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: date
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Entry date in YYYY-MM-DD.
+      responses:
+        '204':
+          description: Deleted
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/steps/add:
+    post:
+      summary: Add delta to daily steps entry
+      description: Atomically adds delta to daily steps count.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StepsAddRequest'
+      responses:
+        '200':
+          description: Add delta result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StepsAddResponse'
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/steps/analytics:
+    get:
+      summary: Get week and month steps analytics
+      description: Returns analytics for selected month and current week in user timezone.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: month
+          required: true
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
+          description: Target month in YYYY-MM.
+      responses:
+        '200':
+          description: Analytics payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StepsAnalyticsResponse'
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   schemas:
     TelegramAuthRequest:
       type: object
@@ -208,3 +465,139 @@ components:
           enum: [invalid_input, unauthorized, not_found, conflict, internal_error]
         error:
           type: string
+
+    MeSettingsPatchRequest:
+      type: object
+      properties:
+        timezone:
+          type: string
+          description: IANA timezone (for example `Europe/Moscow`).
+        stepsGoal:
+          type: integer
+          minimum: 1000
+          maximum: 30000
+          multipleOf: 500
+      description: At least one of `timezone` or `stepsGoal` should be provided.
+
+    MeSettingsPatchResponse:
+      type: object
+      required: [user]
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+
+    DailyEntry:
+      type: object
+      required: [date, count, source, createdAt, updatedAt]
+      properties:
+        date:
+          type: string
+          format: date
+        count:
+          type: integer
+          minimum: 0
+        source:
+          type: string
+          enum: [manual]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    StepsListResponse:
+      type: object
+      required: [entries]
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/DailyEntry'
+
+    StepsPutRequest:
+      type: object
+      required: [count, source]
+      properties:
+        count:
+          type: integer
+          minimum: 0
+        source:
+          type: string
+          enum: [manual]
+
+    StepsPutResponse:
+      type: object
+      required: [entry]
+      properties:
+        entry:
+          $ref: '#/components/schemas/DailyEntry'
+
+    StepsAddRequest:
+      type: object
+      required: [date, delta, source]
+      properties:
+        date:
+          type: string
+          format: date
+        delta:
+          type: integer
+          description: Non-zero delta. Negative values are allowed unless resulting value becomes negative.
+        source:
+          type: string
+          enum: [manual]
+
+    StepsAddResponse:
+      type: object
+      required: [entry]
+      properties:
+        entry:
+          $ref: '#/components/schemas/DailyEntry'
+
+    StepsAnalyticsPoint:
+      type: object
+      required: [date, steps]
+      properties:
+        date:
+          type: string
+          format: date
+        steps:
+          type: integer
+          minimum: 0
+
+    StepsAnalyticsPeriod:
+      type: object
+      required: [from, to, goalTotal, factTotal, completionPercent, series]
+      properties:
+        from:
+          type: string
+          format: date
+        to:
+          type: string
+          format: date
+        goalTotal:
+          type: integer
+          minimum: 0
+        factTotal:
+          type: integer
+          minimum: 0
+        completionPercent:
+          type: number
+          format: double
+          minimum: 0
+        series:
+          type: array
+          items:
+            $ref: '#/components/schemas/StepsAnalyticsPoint'
+
+    StepsAnalyticsResponse:
+      type: object
+      required: [goalPerDay, week, month]
+      properties:
+        goalPerDay:
+          type: integer
+          minimum: 1
+        week:
+          $ref: '#/components/schemas/StepsAnalyticsPeriod'
+        month:
+          $ref: '#/components/schemas/StepsAnalyticsPeriod'

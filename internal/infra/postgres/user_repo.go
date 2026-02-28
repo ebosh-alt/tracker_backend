@@ -4,12 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"tracker/internal/domain/shared"
+	domainSteps "tracker/internal/domain/steps"
 	domainUser "tracker/internal/domain/user"
 )
 
@@ -17,6 +19,26 @@ const (
 	userGetByIDSQL = `SELECT id, tg_id, username, first_name, last_name, timezone, steps_goal, streak, created_at, updated_at
 FROM users
 WHERE id = $1`
+	userGetSettingsSQL = `SELECT timezone, steps_goal
+FROM users
+WHERE id = $1`
+	userUpdateSettingsSQL = `UPDATE users
+SET
+  timezone = COALESCE($2, timezone),
+  steps_goal = COALESCE($3, steps_goal),
+  updated_at = NOW()
+WHERE id = $1
+RETURNING
+  id,
+  tg_id,
+  username,
+  first_name,
+  last_name,
+  timezone,
+  steps_goal,
+  streak,
+  created_at,
+  updated_at;`
 	upsertUserFromTelegramSQL = `INSERT INTO users (
   tg_id,
   username,
@@ -109,6 +131,97 @@ func (ur *UserRepo) GetByID(ctx context.Context, userID int64) (*domainUser.User
 	return &user, nil
 }
 
+func (ur *UserRepo) GetSettings(ctx context.Context, userID int64) (domainSteps.AnalyticsUserSettings, error) {
+	var out domainSteps.AnalyticsUserSettings
+	if userID <= 0 {
+		return out, shared.ErrInvalidInput
+	}
+
+	exec := executorFromContext(ctx, ur.db)
+	err := exec.QueryRow(ctx, userGetSettingsSQL, userID).Scan(&out.Timezone, &out.StepsGoal)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return out, shared.ErrNotFound
+		}
+		return out, err
+	}
+	return out, nil
+}
+
+func (ur *UserRepo) UpdateSettings(ctx context.Context, userID int64, patch domainUser.SettingsPatch) (domainUser.User, error) {
+	var out domainUser.User
+	if userID <= 0 {
+		return out, shared.ErrInvalidInput
+	}
+	if patch.Timezone == nil && patch.StepsGoal == nil {
+		return out, shared.ErrInvalidInput
+	}
+
+	var tz *string
+	if patch.Timezone != nil {
+		v := strings.TrimSpace(*patch.Timezone)
+		if v == "" {
+			return out, shared.ErrInvalidInput
+		}
+		if _, err := time.LoadLocation(v); err != nil {
+			return out, shared.ErrInvalidInput
+		}
+		tz = &v
+	}
+	if patch.StepsGoal != nil {
+		if _, err := domainUser.NewStepsGoal(*patch.StepsGoal); err != nil {
+			return out, shared.ErrInvalidInput
+		}
+	}
+
+	var (
+		id        int64
+		tgID      int64
+		username  sql.NullString
+		firstName sql.NullString
+		lastName  sql.NullString
+		timezone  string
+		stepsGoal int
+		streak    int
+		createdAt time.Time
+		updatedAt time.Time
+	)
+
+	exec := executorFromContext(ctx, ur.db)
+	err := exec.QueryRow(
+		ctx,
+		userUpdateSettingsSQL,
+		userID,
+		tz,
+		patch.StepsGoal,
+	).Scan(&id, &tgID, &username, &firstName, &lastName, &timezone, &stepsGoal, &streak, &createdAt, &updatedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return out, shared.ErrNotFound
+		}
+		return out, err
+	}
+
+	goal, err := domainUser.NewStepsGoal(stepsGoal)
+	if err != nil {
+		return out, shared.ErrInvalidInput
+	}
+
+	out = domainUser.User{
+		ID:         id,
+		TelegramID: tgID,
+		Username:   username.String,
+		FirstName:  firstName.String,
+		LastName:   lastName.String,
+		Timezone:   timezone,
+		StepsGoal:  goal,
+		Streak:     streak,
+		CreatedAt:  createdAt.UTC(),
+		UpdatedAt:  updatedAt.UTC(),
+	}
+	return out, nil
+}
+
 func (ur *UserRepo) UpsertFromTelegram(ctx context.Context, tgUser *domainUser.TelegramProfile) (*domainUser.UpsertFromTelegramResult, error) {
 	var (
 		id        int64
@@ -134,6 +247,7 @@ func (ur *UserRepo) UpsertFromTelegram(ctx context.Context, tgUser *domainUser.T
 		tgUser.LastName,
 		tgUser.Timezone,
 	).Scan(&id, &tgID, &username, &firstName, &lastName, &timezone, &stepsGoal, &streak, &createdAt, &updatedAt, &created)
+
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, shared.ErrNotFound

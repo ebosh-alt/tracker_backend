@@ -234,3 +234,8 @@ func (m LocalMonth) DaysInMonth(loc *time.Location) (int, error) {
 	next := first.AddDate(0, 1, 0)
 	return int(next.Sub(first).Hours() / 24), nil
 }
+
+func (m LocalMonth) Validate() error {
+	_, err := ParseLocalMonth(m.String())
+	return err
+}
